@@ -8,13 +8,16 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Initialize database
 def init_db():
     conn = get_db_connection()
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS Books (
+            ISBN TEXT PRIMARY KEY,
+            Title TEXT NOT NULL,
+            Date_Pub TEXT,
+            Publisher TEXT,
+            Genre TEXT,
+            Description TEXT
         )
     ''')
     conn.commit()
@@ -23,18 +26,31 @@ def init_db():
 @app.route('/')
 def index():
     conn = get_db_connection()
-    users = conn.execute('SELECT * FROM users').fetchall()
+    books = conn.execute('SELECT * FROM Books').fetchall()
     conn.close()
-    return render_template('index.html', users=users)
+    return render_template('index.html', books=books)
 
-@app.route('/add', methods=('POST',))
-def add_user():
-    name = request.form['name']
-    conn = get_db_connection()
-    conn.execute('INSERT INTO users (name) VALUES (?)', (name,))
-    conn.commit()
-    conn.close()
-    return redirect('/')
+@app.route('/add', methods=('GET', 'POST'))
+def add_book():
+    if request.method == 'POST':
+        isbn = request.form['isbn']
+        title = request.form['title']
+        date_pub = request.form['date_pub']
+        publisher = request.form['publisher']
+        genre = request.form['genre']
+        description = request.form['description']
+
+        conn = get_db_connection()
+        conn.execute('''
+            INSERT INTO Books (ISBN, Title, Date_Pub, Publisher, Genre, Description)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (isbn, title, date_pub, publisher, genre, description))
+        conn.commit()
+        conn.close()
+
+        return redirect('/')
+
+    return render_template('add_book.html')
 
 if __name__ == '__main__':
     init_db()
