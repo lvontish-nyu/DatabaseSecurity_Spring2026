@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My App</title>
+</head>
+<body>
+    <h1>Users</h1>
+
+    <form method="post" action="/add">
+        <input type="text" name="name" placeholder="Enter name" required>
+        <button type="submit">Add</button>
+    </form>
+
+    <ul>
+        {% for user in users %}
+            <li>{{ user['name'] }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
