@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Tables</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 6px 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Database Tables</h1>
+
+<a href="/">Back to Home</a>
+
+<h2>Books</h2>
+<table>
+    <tr>
+        <th>ISBN</th><th>Title</th><th>Date</th><th>Publisher</th><th>Genre</th><th>Description</th>
+    </tr>
+    {% for b in books %}
+    <tr>
+        <td>{{ b['ISBN'] }}</td>
+        <td>{{ b['Title'] }}</td>
+        <td>{{ b['Date_Pub'] }}</td>
+        <td>{{ b['Publisher'] }}</td>
+        <td>{{ b['Genre'] }}</td>
+        <td>{{ b['Description'] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>Authors</h2>
+<table>
+    <tr>
+        <th>ID</th><th>First</th><th>Last</th><th>Birthdate</th><th>Bio</th>
+    </tr>
+    {% for a in authors %}
+    <tr>
+        <td>{{ a['Author_ID'] }}</td>
+        <td>{{ a['First_Name'] }}</td>
+        <td>{{ a['Last_Name'] }}</td>
+        <td>{{ a['Birthdate'] }}</td>
+        <td>{{ a['Biography'] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>Books_and_Authors</h2>
+<table>
+    <tr>
+        <th>ISBN</th><th>Author_ID</th>
+    </tr>
+    {% for ba in books_authors %}
+    <tr>
+        <td>{{ ba['ISBN'] }}</td>
+        <td>{{ ba['Author_ID'] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>Copies</h2>
+<table>
+    <tr>
+        <th>Barcode</th><th>ISBN</th><th>Status</th><th>Shelf</th>
+        <th>Language</th><th>Pages</th><th>Date Added</th>
+    </tr>
+    {% for c in copies %}
+    <tr>
+        <td>{{ c['Barcode'] }}</td>
+        <td>{{ c['ISBN'] }}</td>
+        <td>{{ c['Status'] }}</td>
+        <td>{{ c['Shelf'] }}</td>
+        <td>{{ c['Language'] }}</td>
+        <td>{{ c['Page_Count'] }}</td>
+        <td>{{ c['Date_Added'] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

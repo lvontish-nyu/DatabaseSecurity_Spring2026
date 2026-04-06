@@ -143,8 +143,26 @@ def add_author():
 
         return redirect('/')
 
-
     return render_template('add_author.html')
+
+@app.route('/tables')
+def show_tables():
+    conn = get_db_connection()
+
+    books = conn.execute('SELECT * FROM Books').fetchall()
+    authors = conn.execute('SELECT * FROM Authors').fetchall()
+    books_authors = conn.execute('SELECT * FROM Books_and_Authors').fetchall()
+    copies = conn.execute('SELECT * FROM Copies').fetchall()
+
+    conn.close()
+
+    return render_template(
+        'show_tables.html',
+        books=books,
+        authors=authors,
+        books_authors=books_authors,
+        copies=copies
+    )
 
 if __name__ == '__main__':
     init_db()
