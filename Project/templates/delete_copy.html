@@ -1,0 +1,33 @@
+<table>
+    <tr>
+        <th>Barcode</th>
+        <th>ISBN</th>
+        <th>Title</th>
+        <th>Author</th>
+        <th>Status</th>
+        <th>Shelf</th>
+        <th>Language</th>
+        <th>Pages</th>
+        <th>Date Added</th>
+        <th>Action</th>
+    </tr>
+    {% for c in copies %}
+    <tr>
+        <td>{{ c['Barcode'] }}</td>
+        <td>{{ c['ISBN'] }}</td>
+        <td>{{ c['Title'] }}</td>
+        <td>{{ c['Author'] or 'Unknown' }}</td>
+        <td>{{ c['Status'] }}</td>
+        <td>{{ c['Shelf'] }}</td>
+        <td>{{ c['Language'] }}</td>
+        <td>{{ c['Page_Count'] }}</td>
+        <td>{{ c['Date_Added'] }}</td>
+        <td>
+            <form method="post" style="margin:0;">
+                <input type="hidden" name="barcode" value="{{ c['Barcode'] }}">
+                <button type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
