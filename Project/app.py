@@ -25,7 +25,7 @@ def init_db():
      # Create Authors
     conn.execute('''
         CREATE TABLE IF NOT EXISTS Authors (
-            Author_ID INTEGER PRIMARY KEY,
+            Author_ID INTEGER PRIMARY KEY AUTOINCREMENT,
             First_Name TEXT,
             Last_Name TEXT,
             Birthdate TEXT,
@@ -46,7 +46,7 @@ def init_db():
     # Copies Table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS Copies (
-            Barcode INTEGER PRIMARY KEY,
+            Barcode INTEGER PRIMARY KEY AUTOINCREMENT,
             ISBN TEXT,
             Status TEXT,
             Shelf TEXT,
@@ -69,6 +69,8 @@ def index():
 
 @app.route('/add', methods=('GET', 'POST'))
 def add_book():
+    conn = get_db_connection()
+
     if request.method == 'POST':
         isbn = request.form['isbn']
         title = request.form['title']
@@ -78,7 +80,7 @@ def add_book():
         description = request.form['description']
         author_id = request.form['author_id']
 
-        conn = get_db_connection()
+        #conn = get_db_connection()
 
         # Insert book
         conn.execute('''
@@ -93,21 +95,25 @@ def add_book():
         ''', (isbn, author_id))
 
         # Generate Barcode
-        count = conn.execute('SELECT COUNT(*) FROM Copies').fetchone()[0]
-        barcode = count + 1
+        #count = conn.execute('SELECT COUNT(*) FROM Copies').fetchone()[0]
+        #barcode = count + 1
 
-        # Insert copy (default values for now)
+        # Insert copy (AUTOINCREMENT handles Barcode)
         conn.execute('''
-            INSERT INTO Copies (Barcode, ISBN, Status, Shelf, Language, Page_Count, Date_Added)
-            VALUES (?, ?, ?, ?, ?, ?, DATE('now'))
-        ''', (barcode, isbn, 'Available', 'Unknown', 'English', 0))
+            INSERT INTO Copies (ISBN, Status, Shelf, Language, Page_Count, Date_Added)
+            VALUES (?, ?, ?, ?, ?, DATE('now'))
+        ''', (isbn, 'Available', 'Unknown', 'English', 0))
 
         conn.commit()
         conn.close()
 
         return redirect('/')
 
-    return render_template('add_book.html')
+    # GET request → fetch authors
+    authors = conn.execute('SELECT * FROM Authors').fetchall()
+    conn.close()
+
+    return render_template('add_book.html', authors=authors)
 
 
 @app.route('/add_author', methods=('GET', 'POST'))
@@ -121,18 +127,22 @@ def add_author():
         conn = get_db_connection()
 
         # Generate Author_ID
-        count = conn.execute('SELECT COUNT(*) FROM Authors').fetchone()[0]
-        author_id = count + 1
+        #count = conn.execute('SELECT COUNT(*) FROM Authors').fetchone()[0]
+        #author_id = count + 1
 
-        conn.execute('''
-            INSERT INTO Authors (Author_ID, First_Name, Last_Name, Birthdate, Biography)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (author_id, first, last, birthdate, bio))
+        cursor = conn.execute('''
+            INSERT INTO Authors (First_Name, Last_Name, Birthdate, Biography)
+            VALUES (?, ?, ?, ?)
+        ''', (first, last, birthdate, bio))
+
+        author_id = cursor.lastrowid
+        print("Inserted ID:", cursor.lastrowid)    
 
         conn.commit()
         conn.close()
 
         return redirect('/')
+
 
     return render_template('add_author.html')
 
