@@ -10,6 +10,7 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
+    # Create Books
     conn.execute('''
         CREATE TABLE IF NOT EXISTS Books (
             ISBN TEXT PRIMARY KEY,
@@ -20,6 +21,42 @@ def init_db():
             Description TEXT
         )
     ''')
+
+     # Create Authors
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS Authors (
+            Author_ID INTEGER PRIMARY KEY,
+            First_Name TEXT,
+            Last_Name TEXT,
+            Birthdate TEXT,
+            Biography TEXT
+        )
+    ''')
+
+    # Junction table Books_and_Authors
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS Books_and_Authors (
+            ISBN TEXT,
+            Author_ID INTEGER,
+            FOREIGN KEY (ISBN) REFERENCES Books (ISBN),
+            FOREIGN KEY (Author_ID) REFERENCES Authors (Author_ID)
+        )
+    ''')
+
+    # Copies Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS Copies (
+            Barcode INTEGER PRIMARY KEY,
+            ISBN TEXT,
+            Status TEXT,
+            Shelf TEXT,
+            Language TEXT,
+            Page_Count INTEGER,
+            Date_Added TEXT,
+            FOREIGN KEY (ISBN) REFERENCES Books (ISBN)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
