@@ -76,18 +76,65 @@ def add_book():
         publisher = request.form['publisher']
         genre = request.form['genre']
         description = request.form['description']
+        author_id = request.form['author_id']
 
         conn = get_db_connection()
+
+        # Insert book
         conn.execute('''
             INSERT INTO Books (ISBN, Title, Date_Pub, Publisher, Genre, Description)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (isbn, title, date_pub, publisher, genre, description))
+
+        # Link book to author
+        conn.execute('''
+            INSERT INTO Books_and_Authors (ISBN, Author_ID)
+            VALUES (?, ?)
+        ''', (isbn, author_id))
+
+        # Generate Barcode
+        count = conn.execute('SELECT COUNT(*) FROM Copies').fetchone()[0]
+        barcode = count + 1
+
+        # Insert copy (default values for now)
+        conn.execute('''
+            INSERT INTO Copies (Barcode, ISBN, Status, Shelf, Language, Page_Count, Date_Added)
+            VALUES (?, ?, ?, ?, ?, ?, DATE('now'))
+        ''', (barcode, isbn, 'Available', 'Unknown', 'English', 0))
+
         conn.commit()
         conn.close()
 
         return redirect('/')
 
     return render_template('add_book.html')
+
+
+@app.route('/add_author', methods=('GET', 'POST'))
+def add_author():
+    if request.method == 'POST':
+        first = request.form['first_name']
+        last = request.form['last_name']
+        birthdate = request.form['birthdate']
+        bio = request.form['biography']
+
+        conn = get_db_connection()
+
+        # Generate Author_ID
+        count = conn.execute('SELECT COUNT(*) FROM Authors').fetchone()[0]
+        author_id = count + 1
+
+        conn.execute('''
+            INSERT INTO Authors (Author_ID, First_Name, Last_Name, Birthdate, Biography)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (author_id, first, last, birthdate, bio))
+
+        conn.commit()
+        conn.close()
+
+        return redirect('/')
+
+    return render_template('add_author.html')
 
 if __name__ == '__main__':
     init_db()
