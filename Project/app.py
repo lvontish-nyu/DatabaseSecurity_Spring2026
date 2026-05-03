@@ -550,7 +550,9 @@ def checkout_confirm():
 
     # Check availability
     cur.execute("""
-        SELECT Status FROM Copies WHERE Barcode = ?
+        SELECT Status, ISBN
+        FROM Copies
+        WHERE Barcode = ?
     """, (barcode,))
     copy = cur.fetchone()
 
@@ -558,7 +560,49 @@ def checkout_confirm():
         conn.close()
         return "Copy not found", 404
 
-    if copy["Status"] != "Available":
+    status = copy["Status"]
+    isbn = copy["ISBN"]
+
+    #if copy["Status"] != "Available":
+    #    conn.close()
+    #    return "Copy is not available", 400
+
+    # CASE 1: Available → normal checkout
+    if status == "Available":
+        pass  # allowed to proceed
+
+    # CASE 2: On Hold → must validate hold ownership
+    elif status == "On Hold":
+
+        cur.execute("""
+            SELECT Hold_ID, Card_Number
+            FROM Holds
+            WHERE ISBN = ? AND Status = 'Ready'
+            ORDER BY Hold_Date ASC
+            LIMIT 1
+        """, (isbn,))
+
+        hold = cur.fetchone()
+
+        if not hold:
+            conn.close()
+            return "No active hold found", 400
+
+        hold_owner = hold["Card_Number"]
+
+        if hold_owner != card_number:
+            conn.close()
+            return "This copy is reserved for another member", 403
+
+        # mark hold fulfilled
+        cur.execute("""
+            UPDATE Holds
+            SET Status = 'Fulfilled'
+            WHERE Hold_ID = ?
+        """, (hold["Hold_ID"],))
+
+    # CASE 3: anything else blocked
+    else:
         conn.close()
         return "Copy is not available", 400
 
@@ -679,8 +723,12 @@ def scan_copy():
         conn.close()
         return redirect('/librarian')
 
-    # If the copy is available, redirect to the checkout page
+    # If the copy is available or on hold, redirect to the checkout page
     elif status == "Available":
+        conn.close()
+        return redirect(f'/checkout_page/{barcode}')
+
+    elif status == "On Hold":
         conn.close()
         return redirect(f'/checkout_page/{barcode}')
 
