@@ -67,23 +67,27 @@ def init_db():
         SELECT 
             b.ISBN,
             b.Title,
-
-            -- Combine authors into one string
             GROUP_CONCAT(a.First_Name || ' ' || a.Last_Name, ', ') AS Authors,
-
-            -- Popularity
-            SUM(c.Checkouts) AS Total_Checkouts,
-
-            -- Availability
-            SUM(CASE WHEN c.Status = 'Available' THEN 1 ELSE 0 END) AS Available_Copies
-
+            cp.Total_Checkouts,
+            cp.Available_Copies
         FROM Books b
-        JOIN Copies c ON b.ISBN = c.ISBN
+
+        -- Aggregate copies FIRST
+        JOIN (
+            SELECT 
+                ISBN,
+                SUM(Checkouts) AS Total_Checkouts,
+                SUM(CASE WHEN Status = 'Available' THEN 1 ELSE 0 END) AS Available_Copies
+            FROM Copies
+            GROUP BY ISBN
+        ) cp ON b.ISBN = cp.ISBN
+
         LEFT JOIN Books_and_Authors ba ON b.ISBN = ba.ISBN
         LEFT JOIN Authors a ON ba.Author_ID = a.Author_ID
 
-        GROUP BY b.ISBN
-        HAVING Available_Copies > 0;
+        WHERE cp.Available_Copies > 0
+
+        GROUP BY b.ISBN;
     ''')
 
     # Members Table
@@ -143,7 +147,17 @@ def init_db():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    conn = get_db_connection()
+
+    popular_books = conn.execute("""
+        SELECT * FROM PopularBooks
+        ORDER BY Total_Checkouts DESC
+        LIMIT 10
+    """).fetchall()
+
+    conn.close()
+
+    return render_template('index.html', popular_books=popular_books)
 
 @app.route('/librarian')
 def librarian():
