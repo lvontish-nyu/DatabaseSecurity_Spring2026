@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Member Management</title>
+</head>
+<body>
+    <h1>Member Management</h1>
+
+    <a href="/librarian">Back to Librarian</a><br><br>
+
+    <!-- Search Form -->
+    <form method="POST">
+        <input type="text" name="search" placeholder="Search by name or email">
+        <button type="submit">Search</button>
+    </form>
+
+    <br>
+
+    <table border="1">
+        <tr>
+            <th>Card #</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Actions</th>
+        </tr>
+
+        {% for m in members %}
+        <tr>
+            <td>{{ m['Card_Number'] }}</td>
+            <td>{{ m['First_Name'] }} {{ m['Last_Name'] }}</td>
+            <td>{{ m['Email'] }}</td>
+            <td>{{ m['Phone'] }}</td>
+            <td>
+                <a href="/edit_member/{{ m['Card_Number'] }}">Edit</a> |
+                <a href="/delete_member/{{ m['Card_Number'] }}"
+                   onclick="return confirm('Are you sure?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+</body>
+</html>

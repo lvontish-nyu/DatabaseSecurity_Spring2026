@@ -285,6 +285,25 @@ def add_member():
 
     return render_template('add_member.html')
 
+@app.route('/member-management', methods=('GET', 'POST'))
+def manage_members():
+    conn = get_db_connection()
+
+    search = request.form.get('search') if request.method == 'POST' else None
+
+    if search:
+        members = conn.execute('''
+            SELECT * FROM Members
+            WHERE First_Name LIKE ?
+               OR Last_Name LIKE ?
+               OR Email LIKE ?
+        ''', (f'%{search}%', f'%{search}%', f'%{search}%')).fetchall()
+    else:
+        members = conn.execute('SELECT * FROM Members').fetchall()
+
+    conn.close()
+    return render_template('member_management.html', members=members)
+
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
