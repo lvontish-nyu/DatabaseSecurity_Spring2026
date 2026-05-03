@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Member Page</title>
+</head>
+<body>
+    <h1>Browse Books</h1>
+
+    <a href="/">Home</a><br><br>
+
+    <ul>
+        {% for book in books %}
+            <li>
+                <strong>{{ book['Title'] }}</strong><br>
+                {{ book['Genre'] }} | {{ book['Publisher'] }}
+            </li>
+            <hr>
+        {% endfor %}
+    </ul>
+
+</body>
+</html>

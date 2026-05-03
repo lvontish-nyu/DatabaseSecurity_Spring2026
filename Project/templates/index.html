@@ -1,28 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Library</title>
+    <title>Library Home</title>
 </head>
 <body>
-    <h1>Library Books</h1>
+    <h1>Welcome to the Library</h1>
 
-    <a href="/add">Add New Book</a>
-    <a href="/add_author">Add Author</a>
-    <a href="/delete_copy">Delete Copies</a>
+    <h2>Select Your Role</h2>
 
-    <ul>
-        {% for book in books %}
-            <li>
-                <strong>{{ book['Title'] }}</strong> ({{ book['ISBN'] }})<br>
-                {{ book['Genre'] }} | {{ book['Publisher'] }}<br>
-                {{ book['Date_Pub'] }}<br>
-                {{ book['Description'] }}
-            </li>
-            <hr>
-        {% endfor %}
-    </ul>
-
-    <a href="/tables">View All Tables</a>
+    <a href="/librarian">Librarian</a><br><br>
+    <a href="/member">Member</a>
 
 </body>
 </html>

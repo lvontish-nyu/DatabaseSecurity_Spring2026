@@ -62,10 +62,6 @@ def init_db():
 
 @app.route('/')
 def index():
-    #conn = get_db_connection()
-    #books = conn.execute('SELECT * FROM Books').fetchall()
-    #conn.close()
-    #return render_template('index.html', books=books)
     return render_template('index.html')
 
 @app.route('/librarian')
@@ -74,6 +70,15 @@ def librarian():
     books = conn.execute('SELECT * FROM Books').fetchall()
     conn.close()
     return render_template('librarian.html', books=books)    
+
+@app.route('/member')
+def member():
+    conn = get_db_connection()
+    books = conn.execute('SELECT * FROM Books').fetchall()
+    conn.close()
+    return render_template('member.html', books=books)
+
+
 
 @app.route('/add', methods=('GET', 'POST'))
 def add_book():
@@ -238,6 +243,7 @@ def delete_copy():
 
     conn.close()
     return render_template('delete_copy.html', copies=copies, message=message)
+
 
 if __name__ == '__main__':
     init_db()
