@@ -530,110 +530,116 @@ def checkout_confirm():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Resolve member - make sure they are active
-    if card_number:
+    try:
+        # Lock Database for transaction
+        conn.execute("BEGIN IMMEDIATE")
+
+        # Resolve member - make sure they are active
+        if card_number:
+            cur.execute("""
+                SELECT Card_Number FROM Members
+                WHERE Card_Number = ? AND Active = 1
+            """, (card_number,))
+            member = cur.fetchone()
+
+        elif email:
+            cur.execute("""
+                SELECT Card_Number FROM Members
+                WHERE Email = ? AND Active = 1
+            """, (email,))
+            member = cur.fetchone()
+
+        else:
+            conn.rollback()
+            return "Must provide card number or email", 400
+
+        if not member:
+            conn.rollback()
+            return "Member not found", 404
+
+        card_number = member["Card_Number"]
+
+        # Check availability
         cur.execute("""
-            SELECT Card_Number FROM Members
-            WHERE Card_Number = ? AND Active = 1
-        """, (card_number,))
-        member = cur.fetchone()
+            SELECT Status, ISBN
+            FROM Copies
+            WHERE Barcode = ?
+        """, (barcode,))
+        copy = cur.fetchone()
 
-    elif email:
+        if not copy:
+            conn.rollback()
+            return "Copy not found", 404
+
+        status = copy["Status"]
+        isbn = copy["ISBN"]
+
+        # CASE 1: Available → normal checkout
+        if status == "Available":
+            pass  # allowed to proceed
+
+        # CASE 2: On Hold → must validate hold ownership
+        elif status == "On Hold":
+
+            cur.execute("""
+                SELECT Hold_ID, Card_Number
+                FROM Holds
+                WHERE ISBN = ? AND Status = 'Ready'
+                ORDER BY Hold_Date ASC
+                LIMIT 1
+            """, (isbn,))
+
+            hold = cur.fetchone()
+
+            if not hold:
+                conn.rollback()
+                return "No active hold found", 400
+
+            hold_owner = hold["Card_Number"]
+
+            if hold_owner != card_number:
+                conn.rollback()
+                return "This copy is reserved for another member", 403
+
+            # mark hold fulfilled
+            cur.execute("""
+                UPDATE Holds
+                SET Status = 'Fulfilled'
+                WHERE Hold_ID = ?
+            """, (hold["Hold_ID"],))
+
+        # CASE 3: anything else blocked
+        else:
+            conn.rollback()
+            return "Copy is not available", 400
+
+        # Update copy with new checkout status
         cur.execute("""
-            SELECT Card_Number FROM Members
-            WHERE Email = ? AND Active = 1
-        """, (email,))
-        member = cur.fetchone()
+            UPDATE Copies
+            SET Status = 'Checked Out'
+            WHERE Barcode = ?
+        """, (barcode,))
 
-    else:
-        conn.close()
-        return "Must provide card number or email", 400
-
-    if not member:
-        conn.close()
-        return "Member not found", 404
-
-    card_number = member["Card_Number"]
-
-    # Check availability
-    cur.execute("""
-        SELECT Status, ISBN
-        FROM Copies
-        WHERE Barcode = ?
-    """, (barcode,))
-    copy = cur.fetchone()
-
-    if not copy:
-        conn.close()
-        return "Copy not found", 404
-
-    status = copy["Status"]
-    isbn = copy["ISBN"]
-
-    #if copy["Status"] != "Available":
-    #    conn.close()
-    #    return "Copy is not available", 400
-
-    # CASE 1: Available → normal checkout
-    if status == "Available":
-        pass  # allowed to proceed
-
-    # CASE 2: On Hold → must validate hold ownership
-    elif status == "On Hold":
-
+        # Create loan record
         cur.execute("""
-            SELECT Hold_ID, Card_Number
-            FROM Holds
-            WHERE ISBN = ? AND Status = 'Ready'
-            ORDER BY Hold_Date ASC
-            LIMIT 1
-        """, (isbn,))
+            INSERT INTO Loans (
+                Barcode, Card_Number, Checkout_Date, Due_Date, Return_Date, Status
+            )
+            VALUES (
+                ?, ?, DATE('now'), DATE('now', '+14 days'), NULL, 'Checked Out'
+            )
+        """, (barcode, card_number))
 
-        hold = cur.fetchone()
+        conn.commit()
+        return redirect('/librarian')
 
-        if not hold:
-            conn.close()
-            return "No active hold found", 400
+    except Exception as e:
+        conn.rollback()
+        return str(e), 500
 
-        hold_owner = hold["Card_Number"]
-
-        if hold_owner != card_number:
-            conn.close()
-            return "This copy is reserved for another member", 403
-
-        # mark hold fulfilled
-        cur.execute("""
-            UPDATE Holds
-            SET Status = 'Fulfilled'
-            WHERE Hold_ID = ?
-        """, (hold["Hold_ID"],))
-
-    # CASE 3: anything else blocked
-    else:
+    
+    finally:
         conn.close()
-        return "Copy is not available", 400
-
-    # Update copy with new checkout status
-    cur.execute("""
-        UPDATE Copies
-        SET Status = 'Checked Out'
-        WHERE Barcode = ?
-    """, (barcode,))
-
-    # Create loan record
-    cur.execute("""
-        INSERT INTO Loans (
-            Barcode, Card_Number, Checkout_Date, Due_Date, Return_Date, Status
-        )
-        VALUES (
-            ?, ?, DATE('now'), DATE('now', '+14 days'), NULL, 'Checked Out'
-        )
-    """, (barcode, card_number))
-
-    conn.commit()
-    conn.close()
-
-    return redirect('/librarian')
 
 
 
