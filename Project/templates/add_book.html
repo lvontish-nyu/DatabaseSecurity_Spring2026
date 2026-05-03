@@ -1,3 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+</head>
+
+<body>
+
 <form method="post">
     <input type="text" name="isbn" placeholder="ISBN" required><br>
     <input type="text" name="title" placeholder="Title" required><br>
@@ -8,7 +18,7 @@
     <textarea name="description" placeholder="Description"></textarea><br>
 
     <label>Select Authors:</label><br>
-    <select name="author_ids" multiple required>
+    <select name="author_ids" multiple class="author-select" required>
         {% for author in authors %}
             <option value="{{ author['Author_ID'] }}">
                 {{ author['First_Name'] }} {{ author['Last_Name'] }} (ID: {{ author['Author_ID'] }})
@@ -18,3 +28,15 @@
 
     <button type="submit">Add Book</button>
 </form>
+
+<script>
+$(document).ready(function() {
+    $('.author-select').select2({
+        placeholder: "Search authors...",
+        width: '100%'
+    });
+});
+</script>
+
+</body>
+</html>
