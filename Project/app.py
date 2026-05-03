@@ -90,6 +90,27 @@ def init_db():
         GROUP BY b.ISBN;
     ''')
 
+    # Book Catalogue View:
+    conn.execute('''
+        CREATE VIEW IF NOT EXISTS BookCatalog AS
+        SELECT
+            b.ISBN,
+            b.Title,
+            b.Genre,
+            b.Publisher,
+
+            GROUP_CONCAT(a.First_Name || ' ' || a.Last_Name, ', ') AS Authors,
+
+            SUM(CASE WHEN c.Status = 'Available' THEN 1 ELSE 0 END) AS Available_Copies
+
+        FROM Books b
+        LEFT JOIN Copies c ON b.ISBN = c.ISBN
+        LEFT JOIN Books_and_Authors ba ON b.ISBN = ba.ISBN
+        LEFT JOIN Authors a ON ba.Author_ID = a.Author_ID
+
+        GROUP BY b.ISBN;
+    ''')
+
     # Members Table
     conn.execute('''
         CREATE TABLE IF NOT EXISTS Members (
@@ -166,12 +187,30 @@ def librarian():
     conn.close()
     return render_template('librarian.html', books=books)    
 
-@app.route('/member')
+@app.route('/member', methods=['GET', 'POST'])
 def member():
     conn = get_db_connection()
-    books = conn.execute('SELECT * FROM Books').fetchall()
+
+    search = request.form.get('search') if request.method == 'POST' else None
+
+    query = "SELECT * FROM BookCatalog WHERE 1=1"
+    params = []
+
+    if search:
+        query += """
+        AND (
+            Title LIKE ?
+            OR ISBN LIKE ?
+            OR Genre LIKE ?
+            OR Authors LIKE ?
+        )
+        """
+        params.extend([f'%{search}%'] * 4)
+
+    books = conn.execute(query, params).fetchall()
     conn.close()
-    return render_template('member.html', books=books)
+
+    return render_template('member.html', books=books, search=search)
 
 @app.route('/add', methods=('GET', 'POST'))
 def add_book():

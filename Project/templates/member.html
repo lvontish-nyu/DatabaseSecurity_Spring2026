@@ -1,22 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Member Page</title>
-</head>
-<body>
-    <h1>Browse Books</h1>
+<h1>Browse Books</h1>
 
-    <a href="/">Home</a><br><br>
+<a href="/">Home</a><br><br>
 
-    <ul>
-        {% for book in books %}
-            <li>
-                <strong>{{ book['Title'] }}</strong><br>
-                {{ book['Genre'] }} | {{ book['Publisher'] }}
-            </li>
-            <hr>
-        {% endfor %}
-    </ul>
+<!-- SEARCH BAR -->
+<form method="POST" action="/member">
+    <input type="text" name="search" placeholder="Search title, author, ISBN, genre">
+    <button type="submit">Search</button>
+</form>
 
-</body>
-</html>
+<br>
+
+<ul>
+    {% for book in books %}
+        <li>
+            <strong>{{ book['Title'] }}</strong><br>
+            Author(s): {{ book['Authors'] }}<br>
+            ISBN: {{ book['ISBN'] }}<br>
+            Genre: {{ book['Genre'] }}<br>
+            Publisher: {{ book['Publisher'] }}<br>
+
+            Available Copies: {{ book['Available_Copies'] }}
+            {% if book['Available_Copies'] == 0 %}
+                <span style="color:red;">Not Available</span>
+            {% endif %}
+        </li>
+        <hr>
+    {% endfor %}
+</ul>
