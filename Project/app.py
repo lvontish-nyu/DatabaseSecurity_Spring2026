@@ -100,8 +100,9 @@ def init_db():
             b.Publisher,
 
             GROUP_CONCAT(a.First_Name || ' ' || a.Last_Name, ', ') AS Authors,
-
-            SUM(CASE WHEN c.Status = 'Available' THEN 1 ELSE 0 END) AS Available_Copies
+            COALESCE(SUM(CASE WHEN c.Status = 'Available' THEN 1 ELSE 0 END), 0) AS Available_Copies,
+            COALESCE(SUM(CASE WHEN c.Status != 'Lost' THEN 1 ELSE 0 END), 0) AS Non_Lost_Copies,
+            COALESCE(h.Hold_Count, 0) AS Hold_Count
 
         FROM Books b
         LEFT JOIN Copies c ON b.ISBN = c.ISBN
@@ -118,7 +119,8 @@ def init_db():
             GROUP BY ISBN
         ) h ON b.ISBN = h.ISBN
 
-        GROUP BY b.ISBN;
+        GROUP BY b.ISBN
+        HAVING Non_Lost_Copies > 0;
     ''')
 
     # Holds "Queue" Table
@@ -128,7 +130,8 @@ def init_db():
             ISBN TEXT NOT NULL,
             Card_Number INTEGER NOT NULL,
             Hold_Date TEXT DEFAULT (DATE('now')),
-            Status TEXT CHECK (Status IN ('Active', 'Fulfilled', 'Cancelled')) DEFAULT 'Active',
+            Status TEXT CHECK (Status IN ('Active', 'Ready', 'Fulfilled', 'Cancelled')) DEFAULT 'Active',
+            Loan_ID INTEGER NULL,
 
             FOREIGN KEY (ISBN) REFERENCES Books(ISBN),
             FOREIGN KEY (Card_Number) REFERENCES Members(Card_Number)
@@ -587,6 +590,25 @@ def checkout_confirm():
 
 
 def checkin_copy(conn, cur, barcode):
+    # 1. Get ISBN first
+    copy = cur.execute("""
+        SELECT ISBN FROM Copies WHERE Barcode = ?
+    """, (barcode,)).fetchone()
+
+    if not copy:
+        return "Copy not found"
+
+    isbn = copy["ISBN"]
+
+    # 2. Mark loan as returned
+    cur.execute("""
+        UPDATE Loans
+        SET Return_Date = DATE('now'),
+            Status = 'Returned'
+        WHERE Barcode = ? AND Return_Date IS NULL
+    """, (barcode,))
+
+    # 3. Check-in copy (make available first)
     cur.execute("""
         UPDATE Copies
         SET Status = 'Available'
@@ -596,14 +618,34 @@ def checkin_copy(conn, cur, barcode):
     if cur.rowcount == 0:
         return "Checkin failed"
 
-    cur.execute("""
-        UPDATE Loans
-        SET Return_Date = DATE('now'),
-            Status = 'Returned'
-        WHERE Barcode = ? AND Return_Date IS NULL
-    """, (barcode,))
+    # 4. Check for holds
+    hold = cur.execute("""
+        SELECT *
+        FROM Holds
+        WHERE ISBN = ? AND Status = 'Active'
+        ORDER BY Hold_Date ASC
+        LIMIT 1
+    """, (isbn,)).fetchone()
+
+    if hold:
+        hold_id = hold["Hold_ID"]
+
+        # mark hold as ready for pickup
+        cur.execute("""
+            UPDATE Holds
+            SET Status = 'Ready'
+            WHERE Hold_ID = ?
+        """, (hold_id,))
+
+        # lock the copy again for pickup
+        cur.execute("""
+            UPDATE Copies
+            SET Status = 'On Hold'
+            WHERE Barcode = ?
+        """, (barcode,))
 
     return None
+
 
 
 @app.route('/scan_copy', methods=['POST'])
