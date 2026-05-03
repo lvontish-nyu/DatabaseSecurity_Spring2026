@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Checkout</title>
+</head>
+<body>
+
+<h1>Checkout Book</h1>
+
+<p><strong>Barcode:</strong> {{ copy['Barcode'] }}</p>
+<p><strong>ISBN:</strong> {{ copy['ISBN'] }}</p>
+<p><strong>Status:</strong> {{ copy['Status'] }}</p>
+
+<hr>
+
+<form action="/checkout_confirm" method="POST">
+    <input type="hidden" name="barcode" value="{{ copy['Barcode'] }}">
+
+    <label>Member Card Number:</label><br>
+    <input type="text" name="card_number"><br><br>
+
+    <label>OR Member Email:</label><br>
+    <input type="text" name="email"><br><br>
+
+    <button type="submit">Confirm Checkout</button>
+</form>
+
+<a href="/librarian">Cancel</a>
+
+</body>
+</html>

@@ -366,16 +366,38 @@ def reactivate_member(card_number):
     return redirect('/member-management')
 
 
-@app.route('/checkout', methods=['POST'])
-def checkout():
+
+@app.route('/checkout_page/<int:barcode>')
+def checkout_page(barcode):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    copy = cur.execute("""
+        SELECT Barcode, ISBN, Status
+        FROM Copies
+        WHERE Barcode = ?
+    """, (barcode,)).fetchone()
+
+    conn.close()
+
+    if not copy:
+        return "Copy not found", 404
+
+    return render_template("checkout.html", copy=copy)
+
+
+@app.route('/checkout_confirm', methods=['POST'])
+def checkout_confirm():
     barcode = request.form['barcode']
-    card_number = request.form['card_number']
+    card_number = request.form.get('card_number')
     email = request.form.get('email')
 
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # 1. Resolve member
+    # -------------------------
+    # Resolve member
+    # -------------------------
     if card_number:
         cur.execute("""
             SELECT Card_Number FROM Members
@@ -391,35 +413,44 @@ def checkout():
         member = cur.fetchone()
 
     else:
+        conn.close()
         return "Must provide card number or email", 400
 
     if not member:
+        conn.close()
         return "Member not found", 404
 
-    card_number = member[0]
+    card_number = member["Card_Number"]
 
-    # Check copy availability
-    cur.execute("SELECT Status FROM Copies WHERE Barcode = ?", (barcode,))
+    # -------------------------
+    # Check availability
+    # -------------------------
+    cur.execute("""
+        SELECT Status FROM Copies WHERE Barcode = ?
+    """, (barcode,))
     copy = cur.fetchone()
 
     if not copy:
+        conn.close()
         return "Copy not found", 404
 
-    if copy[0] != "Available":
+    if copy["Status"] != "Available":
+        conn.close()
         return "Copy is not available", 400
 
-    # Update copy status + increment checkouts
+    # -------------------------
+    # Update copy
+    # -------------------------
     cur.execute("""
         UPDATE Copies
         SET Status = 'Checked Out',
             Checkouts = Checkouts + 1
-        WHERE Barcode = ? AND Status = 'Available'
+        WHERE Barcode = ?
     """, (barcode,))
 
-    if cur.rowcount == 0:
-        return "Checkout failed (race condition or already checked out)", 400
-
-    # INSERT loan record
+    # -------------------------
+    # Create loan
+    # -------------------------
     cur.execute("""
         INSERT INTO Loans (
             Barcode, Card_Number, Checkout_Date, Due_Date, Return_Date, Status
@@ -433,6 +464,71 @@ def checkout():
     conn.close()
 
     return redirect('/librarian')
+
+
+
+
+
+def checkin_copy(conn, cur, barcode):
+    cur.execute("""
+        UPDATE Copies
+        SET Status = 'Available'
+        WHERE Barcode = ? AND Status = 'Checked Out'
+    """, (barcode,))
+
+    if cur.rowcount == 0:
+        return "Checkin failed"
+
+    cur.execute("""
+        UPDATE Loans
+        SET Return_Date = DATE('now'),
+            Status = 'Returned'
+        WHERE Barcode = ? AND Return_Date IS NULL
+    """, (barcode,))
+
+    return None
+
+
+@app.route('/scan_copy', methods=['POST'])
+def scan_copy():
+    barcode = request.form['barcode']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    copy = cur.execute("""
+        SELECT Status
+        FROM Copies
+        WHERE Barcode = ?
+    """, (barcode,)).fetchone()
+
+    if not copy:
+        conn.close()
+        return "Copy not found", 404
+
+    status = copy["Status"]
+
+    # If the copy is checked out, automatically check it in
+    if status == "Checked Out":
+        error = checkin_copy(conn, cur, barcode)
+
+        if error:
+            conn.close()
+            return error, 400
+
+        conn.commit()
+        conn.close()
+        return redirect('/librarian')
+
+    # If the copy is available, redirect to the checkout page
+    elif status == "Available":
+        conn.close()
+        return redirect(f'/checkout_page/{barcode}')
+
+    else:
+        conn.close()
+        return f"Cannot process status: {status}", 400
+
 
 
 if __name__ == '__main__':
