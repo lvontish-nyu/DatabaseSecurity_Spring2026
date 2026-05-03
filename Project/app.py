@@ -57,6 +57,19 @@ def init_db():
         )
     ''')
 
+    # Members Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS Members (
+            Card_Number INTEGER PRIMARY KEY AUTOINCREMENT,
+            First_Name TEXT NOT NULL,
+            Last_Name TEXT NOT NULL,
+            Email TEXT UNIQUE NOT NULL,
+            Phone TEXT,
+            Address TEXT,
+            Membership_Date TEXT DEFAULT (DATE('now'))
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -77,8 +90,6 @@ def member():
     books = conn.execute('SELECT * FROM Books').fetchall()
     conn.close()
     return render_template('member.html', books=books)
-
-
 
 @app.route('/add', methods=('GET', 'POST'))
 def add_book():
@@ -244,6 +255,35 @@ def delete_copy():
     conn.close()
     return render_template('delete_copy.html', copies=copies, message=message)
 
+@app.route('/add_member', methods=('GET', 'POST'))
+def add_member():
+    if request.method == 'POST':
+        first = request.form['first_name']
+        last = request.form['last_name']
+        email = request.form['email']
+        phone = request.form['phone']
+        address = request.form['address']
+
+        conn = get_db_connection()
+
+        try:
+            conn.execute('''
+                INSERT INTO Members (First_Name, Last_Name, Email, Phone, Address)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (first, last, email, phone, address))
+
+            conn.commit()
+            conn.close()
+
+            return redirect('/member')
+
+        except sqlite3.IntegrityError:
+            # Check for duplicate email
+            error = "A member with this email already exists."
+            conn.close()
+            return render_template('add_member.html', error=error)
+
+    return render_template('add_member.html')
 
 if __name__ == '__main__':
     init_db()
