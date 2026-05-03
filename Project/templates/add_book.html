@@ -7,9 +7,8 @@
 
     <textarea name="description" placeholder="Description"></textarea><br>
 
-    <label>Select Author:</label><br>
-    <select name="author_id" required>
-        <option value="">-- Select Author --</option>
+    <label>Select Authors:</label><br>
+    <select name="author_ids" multiple required>
         {% for author in authors %}
             <option value="{{ author['Author_ID'] }}">
                 {{ author['First_Name'] }} {{ author['Last_Name'] }} (ID: {{ author['Author_ID'] }})

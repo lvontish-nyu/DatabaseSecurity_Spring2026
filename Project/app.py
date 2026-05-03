@@ -190,6 +190,18 @@ def init_db():
         JOIN Members m ON l.Card_Number = m.Card_Number;
     ''')
 
+    # Trigger to Increment checkouts automatically
+    conn.execute("""
+        CREATE TRIGGER IF NOT EXISTS increment_checkouts
+        AFTER UPDATE OF Status ON Copies
+        WHEN NEW.Status = 'Checked Out' AND OLD.Status = 'Available'
+        BEGIN
+            UPDATE Copies
+            SET Checkouts = Checkouts + 1
+            WHERE Barcode = NEW.Barcode;
+        END;
+    """)
+
     conn.commit()
     conn.close()
 
@@ -250,9 +262,7 @@ def add_book():
         publisher = request.form['publisher']
         genre = request.form['genre']
         description = request.form['description']
-        author_id = request.form['author_id']
-
-        #conn = get_db_connection()
+        author_ids = request.form.getlist('author_ids')
 
         # Check that book exists before adding to Books
         existing_book = conn.execute('SELECT * FROM Books WHERE ISBN = ?', (isbn,)).fetchone()
@@ -264,14 +274,11 @@ def add_book():
             ''', (isbn, title, date_pub, publisher, genre, description))
 
             # Link book to author
-            conn.execute('''
-                INSERT INTO Books_and_Authors (ISBN, Author_ID)
-                VALUES (?, ?)
-            ''', (isbn, author_id))
-
-        # Generate Barcode
-        #count = conn.execute('SELECT COUNT(*) FROM Copies').fetchone()[0]
-        #barcode = count + 1
+            for author_id in author_ids:
+                conn.execute('''
+                    INSERT INTO Books_and_Authors (ISBN, Author_ID)
+                    VALUES (?, ?)
+                ''', (isbn, author_id))
 
         # Insert copy (AUTOINCREMENT handles Barcode)
         conn.execute('''
@@ -609,8 +616,7 @@ def checkout_confirm():
     # Update copy with new checkout status
     cur.execute("""
         UPDATE Copies
-        SET Status = 'Checked Out',
-            Checkouts = Checkouts + 1
+        SET Status = 'Checked Out'
         WHERE Barcode = ?
     """, (barcode,))
 
