@@ -108,7 +108,31 @@ def init_db():
         LEFT JOIN Books_and_Authors ba ON b.ISBN = ba.ISBN
         LEFT JOIN Authors a ON ba.Author_ID = a.Author_ID
 
+        -- Hold logic
+        LEFT JOIN (
+            SELECT 
+                ISBN,
+                COUNT(*) AS Hold_Count
+            FROM Holds
+            WHERE Status = 'Active'
+            GROUP BY ISBN
+        ) h ON b.ISBN = h.ISBN
+
         GROUP BY b.ISBN;
+    ''')
+
+    # Holds "Queue" Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS Holds (
+            Hold_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            ISBN TEXT NOT NULL,
+            Card_Number INTEGER NOT NULL,
+            Hold_Date TEXT DEFAULT (DATE('now')),
+            Status TEXT CHECK (Status IN ('Active', 'Fulfilled', 'Cancelled')) DEFAULT 'Active',
+
+            FOREIGN KEY (ISBN) REFERENCES Books(ISBN),
+            FOREIGN KEY (Card_Number) REFERENCES Members(Card_Number)
+        );
     ''')
 
     # Members Table
@@ -715,6 +739,33 @@ def mark_lost(loan_id):
     conn.close()
 
     return redirect('/loan_search')
+
+@app.route('/place_hold/<isbn>', methods=['POST'])
+def place_hold(isbn):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    card_number = request.form['card_number']
+
+    # Does the member exist?
+    member = cur.execute("""
+        SELECT Card_Number FROM Members WHERE Card_Number = ?
+    """, (card_number,)).fetchone()
+
+    if not member:
+        conn.close()
+        return "Member not found", 404
+
+    # Insert hold
+    cur.execute("""
+        INSERT INTO Holds (ISBN, Card_Number, Status)
+        VALUES (?, ?, 'Active')
+    """, (isbn, card_number))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/member')
 
 if __name__ == '__main__':
     init_db()

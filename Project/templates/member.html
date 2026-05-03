@@ -23,6 +23,11 @@
             {% if book['Available_Copies'] == 0 %}
                 <span style="color:red;">Not Available</span>
             {% endif %}
+
+            <form action="/place_hold/{{ book['ISBN'] }}" method="POST">
+                <input type="text" name="card_number" placeholder="Your card number" required>
+                <button type="submit">Place Hold</button>
+            </form>
         </li>
         <hr>
     {% endfor %}
