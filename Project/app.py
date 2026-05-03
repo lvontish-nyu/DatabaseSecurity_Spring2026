@@ -66,7 +66,8 @@ def init_db():
             Email TEXT UNIQUE NOT NULL,
             Phone TEXT,
             Address TEXT,
-            Membership_Date TEXT DEFAULT (DATE('now'))
+            Membership_Date TEXT DEFAULT (DATE('now')),
+            Active INTEGER DEFAULT 1 CHECK (Active IN (0,1))
         )
     ''')
 
@@ -191,31 +192,6 @@ def show_tables():
         copies=copies
     )
 
-'''
-@app.route('/delete_copy', methods=('GET', 'POST'))
-def delete_copy():
-    conn = get_db_connection()
-
-    if request.method == 'POST':
-        barcode = request.form['barcode']
-        # Check if copy exists
-        copy = conn.execute('SELECT * FROM Copies WHERE Barcode = ?', (barcode,)).fetchone()
-        if copy:
-            conn.execute('DELETE FROM Copies WHERE Barcode = ?', (barcode,))
-            conn.commit()
-            message = f"Copy with Barcode {barcode} deleted."
-        else:
-            message = f"No copy found with Barcode {barcode}."
-    else:
-        message = None
-
-    # Fetch all copies to display in the table
-    copies = conn.execute('SELECT * FROM Copies').fetchall()
-    conn.close()
-
-    return render_template('delete_copy.html', copies=copies, message=message)
-'''
-
 @app.route('/delete_copy', methods=('GET', 'POST'))
 def delete_copy():
     conn = get_db_connection()
@@ -337,6 +313,37 @@ def edit_member(card_number):
 
     conn.close()
     return render_template('edit_member.html', member=member)
+
+    @app.route('/deactivate_member/<int:card_number>')
+    def deactivate_member(card_number):
+        conn = get_db_connection()
+
+        conn.execute('''
+            UPDATE Members
+            SET Active = 0
+            WHERE Card_Number = ?
+        ''', (card_number,))
+
+        conn.commit()
+        conn.close()
+
+        return redirect('/member-management')
+
+
+    @app.route('/reactivate_member/<int:card_number>')
+    def reactivate_member(card_number):
+        conn = get_db_connection()
+
+        conn.execute('''
+            UPDATE Members
+            SET Active = 1
+            WHERE Card_Number = ?
+        ''', (card_number,))
+
+        conn.commit()
+        conn.close()
+
+        return redirect('/member-management')
 
 
 if __name__ == '__main__':

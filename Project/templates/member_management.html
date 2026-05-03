@@ -23,6 +23,7 @@
             <th>Email</th>
             <th>Phone</th>
             <th>Actions</th>
+            <th>Active?</th>
         </tr>
 
         {% for m in members %}
@@ -33,9 +34,14 @@
             <td>{{ m['Phone'] }}</td>
             <td>
                 <a href="/edit_member/{{ m['Card_Number'] }}">Edit</a> |
-                <a href="/delete_member/{{ m['Card_Number'] }}"
-                   onclick="return confirm('Are you sure?')">Delete</a>
+                {% if m['Active'] == 1 %}
+                    <a href="/deactivate_member/{{ m['Card_Number'] }}"
+                       onclick="return confirm('Deactivate this member?')">Deactivate</a>
+                {% else %}
+                    <a href="/reactivate_member/{{ m['Card_Number'] }}">Reactivate</a>
+                {% endif %}
             </td>
+            <td>{{ m['Active'] }}</td>
         </tr>
         {% endfor %}
     </table>
