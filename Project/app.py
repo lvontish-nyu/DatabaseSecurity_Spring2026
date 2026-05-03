@@ -3,6 +3,9 @@ import sqlite3
 
 app = Flask(__name__)
 
+print("APP STARTING")
+print(app.url_map)
+
 def get_db_connection():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
@@ -48,11 +51,12 @@ def init_db():
         CREATE TABLE IF NOT EXISTS Copies (
             Barcode INTEGER PRIMARY KEY AUTOINCREMENT,
             ISBN TEXT,
-            Status TEXT,
+            Status TEXT CHECK (Status IN ('Available', 'Checked Out', 'Lost', 'Maintenance')),
             Shelf TEXT,
             Language TEXT,
             Page_Count INTEGER,
             Date_Added TEXT,
+            Checkouts INTEGER DEFAULT 0,
             FOREIGN KEY (ISBN) REFERENCES Books (ISBN)
         )
     ''')
@@ -68,6 +72,21 @@ def init_db():
             Address TEXT,
             Membership_Date TEXT DEFAULT (DATE('now')),
             Active INTEGER DEFAULT 1 CHECK (Active IN (0,1))
+        )
+    ''')
+
+    # Loans Table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS Loans (
+            Loan_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            Barcode INTEGER,
+            Card_Number INTEGER,
+            Checkout_Date TEXT,
+            Due_Date TEXT,
+            Return_Date TEXT,
+            Status TEXT CHECK (Status IN ('Available', 'Checked Out', 'Overdue', 'Returned')),
+            FOREIGN KEY (Barcode) REFERENCES Copies(Barcode),
+            FOREIGN KEY (Card_Number) REFERENCES Members(Card_Number)
         )
     ''')
 
@@ -135,7 +154,7 @@ def add_book():
         conn.commit()
         conn.close()
 
-        return redirect('/')
+        return redirect('/librarian')
 
     # GET request → fetch authors
     authors = conn.execute('SELECT * FROM Authors').fetchall()
@@ -169,7 +188,7 @@ def add_author():
         conn.commit()
         conn.close()
 
-        return redirect('/')
+        return redirect('/librarian')
 
     return render_template('add_author.html')
 
@@ -314,36 +333,106 @@ def edit_member(card_number):
     conn.close()
     return render_template('edit_member.html', member=member)
 
-    @app.route('/deactivate_member/<int:card_number>')
-    def deactivate_member(card_number):
-        conn = get_db_connection()
 
-        conn.execute('''
-            UPDATE Members
-            SET Active = 0
+@app.route('/deactivate_member/<int:card_number>')
+def deactivate_member(card_number):
+    conn = get_db_connection()
+
+    conn.execute('''
+        UPDATE Members
+        SET Active = 0
+        WHERE Card_Number = ?
+    ''', (card_number,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/member-management')
+
+
+@app.route('/reactivate_member/<int:card_number>')
+def reactivate_member(card_number):
+    conn = get_db_connection()
+
+    conn.execute('''
+        UPDATE Members
+        SET Active = 1
+        WHERE Card_Number = ?
+    ''', (card_number,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/member-management')
+
+
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    barcode = request.form['barcode']
+    card_number = request.form['card_number']
+    email = request.form.get('email')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # 1. Resolve member
+    if card_number:
+        cur.execute("""
+            SELECT Card_Number FROM Members
             WHERE Card_Number = ?
-        ''', (card_number,))
+        """, (card_number,))
+        member = cur.fetchone()
 
-        conn.commit()
-        conn.close()
+    elif email:
+        cur.execute("""
+            SELECT Card_Number FROM Members
+            WHERE Email = ?
+        """, (email,))
+        member = cur.fetchone()
 
-        return redirect('/member-management')
+    else:
+        return "Must provide card number or email", 400
 
+    if not member:
+        return "Member not found", 404
 
-    @app.route('/reactivate_member/<int:card_number>')
-    def reactivate_member(card_number):
-        conn = get_db_connection()
+    card_number = member[0]
 
-        conn.execute('''
-            UPDATE Members
-            SET Active = 1
-            WHERE Card_Number = ?
-        ''', (card_number,))
+    # Check copy availability
+    cur.execute("SELECT Status FROM Copies WHERE Barcode = ?", (barcode,))
+    copy = cur.fetchone()
 
-        conn.commit()
-        conn.close()
+    if not copy:
+        return "Copy not found", 404
 
-        return redirect('/member-management')
+    if copy[0] != "Available":
+        return "Copy is not available", 400
+
+    # Update copy status + increment checkouts
+    cur.execute("""
+        UPDATE Copies
+        SET Status = 'Checked Out',
+            Checkouts = Checkouts + 1
+        WHERE Barcode = ? AND Status = 'Available'
+    """, (barcode,))
+
+    if cur.rowcount == 0:
+        return "Checkout failed (race condition or already checked out)", 400
+
+    # INSERT loan record
+    cur.execute("""
+        INSERT INTO Loans (
+            Barcode, Card_Number, Checkout_Date, Due_Date, Return_Date, Status
+        )
+        VALUES (
+            ?, ?, DATE('now'), DATE('now', '+14 days'), NULL, 'Checked Out'
+        )
+    """, (barcode, card_number))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/librarian')
 
 
 if __name__ == '__main__':

@@ -14,6 +14,21 @@
     <a href="/delete_copy">Delete Copies</a><br>
     <a href="/tables">View All Tables</a><br><br>
 
+    <h2>Checkout Book</h2>
+
+    <form action="/checkout" method="POST">
+        <label>Barcode:</label><br>
+        <input type="text" name="barcode" required><br><br>
+
+        <label>Member Card Number (optional):</label><br>
+        <input type="text" name="card_number"><br><br>
+
+        <label>OR Member Email (optional):</label><br>
+        <input type="text" name="email"><br><br>
+
+        <button type="submit">Checkout</button>
+    </form>
+
     <h2>Member Management</h2>
     <a href="/add_member">New Member Registration</a><br>
     <a href="/member-management">Manage Existing Members</a><br><br>
