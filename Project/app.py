@@ -90,6 +90,29 @@ def init_db():
         )
     ''')
 
+    # Loan Details View
+    conn.execute('''
+        CREATE VIEW IF NOT EXISTS LoanDetails AS
+        SELECT 
+            l.Loan_ID,
+            l.Barcode,
+            l.Card_Number,
+            l.Checkout_Date,
+            l.Due_Date,
+            l.Return_Date,
+            l.Status AS Loan_Status,
+            c.ISBN,
+            b.Title,
+            a.First_Name || ' ' || a.Last_Name AS Author,
+            m.Email
+        FROM Loans l
+        JOIN Copies c ON l.Barcode = c.Barcode
+        JOIN Books b ON c.ISBN = b.ISBN
+        LEFT JOIN Books_and_Authors ba ON b.ISBN = ba.ISBN
+        LEFT JOIN Authors a ON ba.Author_ID = a.Author_ID
+        JOIN Members m ON l.Card_Number = m.Card_Number;
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -521,6 +544,57 @@ def scan_copy():
         conn.close()
         return f"Cannot process status: {status}", 400
 
+
+@app.route('/loan_search', methods=['GET', 'POST'])
+def loan_search():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    query = "SELECT * FROM LoanDetails WHERE 1=1"
+    params = []
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        author = request.form.get('author')
+        barcode = request.form.get('barcode')
+        isbn = request.form.get('isbn')
+        status = request.form.get('status')
+        card_number = request.form.get('card_number')
+        email = request.form.get('email')
+
+        if title:
+            query += " AND Title LIKE ?"
+            params.append(f"%{title}%")
+
+        if author:
+            query += " AND Author LIKE ?"
+            params.append(f"%{author}%")
+
+        if barcode:
+            query += " AND Barcode = ?"
+            params.append(barcode)
+
+        if isbn:
+            query += " AND ISBN = ?"
+            params.append(isbn)
+
+        if status:
+            query += " AND Loan_Status = ?"
+            params.append(status)
+
+        if card_number:
+            query += " AND Card_Number = ?"
+            params.append(card_number)
+
+        if email:
+            query += " AND Email LIKE ?"
+            params.append(f"%{email}%")
+
+    loans = cur.execute(query, params).fetchall()
+
+    conn.close()
+
+    return render_template('loan_search.html', loans=loans)
 
 
 if __name__ == '__main__':
