@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Member</title>
+</head>
+<body>
+    <h1>Edit Member</h1>
+
+    <a href="/member-management">Back</a><br><br>
+
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        First Name:<br>
+        <input type="text" name="first_name" value="{{ member['First_Name'] }}"><br><br>
+
+        Last Name:<br>
+        <input type="text" name="last_name" value="{{ member['Last_Name'] }}"><br><br>
+
+        Email:<br>
+        <input type="email" name="email" value="{{ member['Email'] }}"><br><br>
+
+        Phone:<br>
+        <input type="text" name="phone" value="{{ member['Phone'] }}"><br><br>
+
+        Address:<br>
+        <input type="text" name="address" value="{{ member['Address'] }}"><br><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+
+</body>
+</html>

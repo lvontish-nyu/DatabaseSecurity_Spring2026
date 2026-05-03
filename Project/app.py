@@ -304,6 +304,41 @@ def manage_members():
     conn.close()
     return render_template('member_management.html', members=members)
 
+@app.route('/edit_member/<int:card_number>', methods=('GET', 'POST'))
+def edit_member(card_number):
+    conn = get_db_connection()
+
+    member = conn.execute(
+        'SELECT * FROM Members WHERE Card_Number = ?',
+        (card_number,)
+    ).fetchone()
+
+    if request.method == 'POST':
+        first = request.form['first_name']
+        last = request.form['last_name']
+        email = request.form['email']
+        phone = request.form['phone']
+        address = request.form['address']
+
+        try:
+            conn.execute('''
+                UPDATE Members
+                SET First_Name = ?, Last_Name = ?, Email = ?, Phone = ?, Address = ?
+                WHERE Card_Number = ?
+            ''', (first, last, email, phone, address, card_number))
+
+            conn.commit()
+            conn.close()
+            return redirect('/member-management')
+
+        except sqlite3.IntegrityError:
+            error = "Email already exists."
+            return render_template('edit_member.html', member=member, error=error)
+
+    conn.close()
+    return render_template('edit_member.html', member=member)
+
+
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
