@@ -62,10 +62,18 @@ def init_db():
 
 @app.route('/')
 def index():
+    #conn = get_db_connection()
+    #books = conn.execute('SELECT * FROM Books').fetchall()
+    #conn.close()
+    #return render_template('index.html', books=books)
+    return render_template('index.html')
+
+@app.route('/librarian')
+def librarian():
     conn = get_db_connection()
     books = conn.execute('SELECT * FROM Books').fetchall()
     conn.close()
-    return render_template('index.html', books=books)
+    return render_template('librarian.html', books=books)    
 
 @app.route('/add', methods=('GET', 'POST'))
 def add_book():
