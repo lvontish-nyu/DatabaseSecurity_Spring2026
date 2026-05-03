@@ -51,7 +51,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS Copies (
             Barcode INTEGER PRIMARY KEY AUTOINCREMENT,
             ISBN TEXT,
-            Status TEXT CHECK (Status IN ('Available', 'Checked Out', 'Lost', 'Maintenance')),
+            Status TEXT CHECK (Status IN ('Available', 'Checked Out', 'Lost', 'Maintenance', 'On Hold')),
             Shelf TEXT,
             Language TEXT,
             Page_Count INTEGER,
@@ -59,6 +59,31 @@ def init_db():
             Checkouts INTEGER DEFAULT 0,
             FOREIGN KEY (ISBN) REFERENCES Books (ISBN)
         )
+    ''')
+
+    # Popular Books View
+    conn.execute('''
+        CREATE VIEW IF NOT EXISTS PopularBooks AS
+        SELECT 
+            b.ISBN,
+            b.Title,
+
+            -- Combine authors into one string
+            GROUP_CONCAT(a.First_Name || ' ' || a.Last_Name, ', ') AS Authors,
+
+            -- Popularity
+            SUM(c.Checkouts) AS Total_Checkouts,
+
+            -- Availability
+            SUM(CASE WHEN c.Status = 'Available' THEN 1 ELSE 0 END) AS Available_Copies
+
+        FROM Books b
+        JOIN Copies c ON b.ISBN = c.ISBN
+        LEFT JOIN Books_and_Authors ba ON b.ISBN = ba.ISBN
+        LEFT JOIN Authors a ON ba.Author_ID = a.Author_ID
+
+        GROUP BY b.ISBN
+        HAVING Available_Copies > 0;
     ''')
 
     # Members Table
@@ -84,7 +109,7 @@ def init_db():
             Checkout_Date TEXT,
             Due_Date TEXT,
             Return_Date TEXT,
-            Status TEXT CHECK (Status IN ('Available', 'Checked Out', 'Overdue', 'Returned')),
+            Status TEXT CHECK (Status IN ('Available', 'Checked Out', 'Overdue', 'Returned', 'Lost')),
             FOREIGN KEY (Barcode) REFERENCES Copies(Barcode),
             FOREIGN KEY (Card_Number) REFERENCES Members(Card_Number)
         )
@@ -596,6 +621,47 @@ def loan_search():
 
     return render_template('loan_search.html', loans=loans)
 
+@app.route('/mark_lost/<int:loan_id>', methods=['POST'])
+def mark_lost(loan_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Get loan and barcode
+    loan = cur.execute("""
+        SELECT Loan_ID, Barcode, Status
+        FROM Loans
+        WHERE Loan_ID = ?
+    """, (loan_id,)).fetchone()
+
+    if not loan:
+        conn.close()
+        return "Loan not found", 404
+
+    if loan["Status"] not in ("Checked Out", "Overdue"):
+        conn.close()
+        return "Cannot mark this loan as lost", 400
+
+    barcode = loan["Barcode"]
+
+    # Update Copies
+    cur.execute("""
+        UPDATE Copies
+        SET Status = 'Lost'
+        WHERE Barcode = ?
+    """, (barcode,))
+
+    # Update Loan
+    cur.execute("""
+        UPDATE Loans
+        SET Status = 'Lost',
+            Return_Date = DATE('now')
+        WHERE Loan_ID = ?
+    """, (loan_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/loan_search')
 
 if __name__ == '__main__':
     init_db()

@@ -29,6 +29,7 @@
         <option value="Checked Out">Checked Out</option>
         <option value="Returned">Returned</option>
         <option value="Overdue">Overdue</option>
+        <option value="Lost">Lost</option>
     </select><br><br>
 
     <label>Member Card Number:</label><br>
@@ -57,6 +58,13 @@
                 Checkout: {{ loan['Checkout_Date'] }}<br>
                 Due: {{ loan['Due_Date'] }}<br>
                 Return: {{ loan['Return_Date'] }}
+
+                {% if loan['Loan_Status'] in ['Checked Out', 'Overdue'] %}
+                    <form action="/mark_lost/{{ loan['Loan_ID'] }}" method="POST" style="display:inline;">
+                        <button type="submit">Mark Lost</button>
+                    </form>
+                {% endif %}
+
             </li>
             <hr>
         {% endfor %}
