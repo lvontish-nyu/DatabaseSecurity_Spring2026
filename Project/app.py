@@ -395,20 +395,18 @@ def checkout_confirm():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # -------------------------
-    # Resolve member
-    # -------------------------
+    # Resolve member - make sure they are active
     if card_number:
         cur.execute("""
             SELECT Card_Number FROM Members
-            WHERE Card_Number = ?
+            WHERE Card_Number = ? AND Active = 1
         """, (card_number,))
         member = cur.fetchone()
 
     elif email:
         cur.execute("""
             SELECT Card_Number FROM Members
-            WHERE Email = ?
+            WHERE Email = ? AND Active = 1
         """, (email,))
         member = cur.fetchone()
 
@@ -422,9 +420,7 @@ def checkout_confirm():
 
     card_number = member["Card_Number"]
 
-    # -------------------------
     # Check availability
-    # -------------------------
     cur.execute("""
         SELECT Status FROM Copies WHERE Barcode = ?
     """, (barcode,))
@@ -438,9 +434,7 @@ def checkout_confirm():
         conn.close()
         return "Copy is not available", 400
 
-    # -------------------------
-    # Update copy
-    # -------------------------
+    # Update copy with new checkout status
     cur.execute("""
         UPDATE Copies
         SET Status = 'Checked Out',
@@ -448,9 +442,7 @@ def checkout_confirm():
         WHERE Barcode = ?
     """, (barcode,))
 
-    # -------------------------
-    # Create loan
-    # -------------------------
+    # Create loan record
     cur.execute("""
         INSERT INTO Loans (
             Barcode, Card_Number, Checkout_Date, Due_Date, Return_Date, Status
